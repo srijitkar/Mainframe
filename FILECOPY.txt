@@ -1,0 +1,87 @@
+/* rexx */                                                              
+say 'Enter Input dataset list: '                                        
+pull indsn                                                              
+status1 = sysdsn("'"strip(indsn)"'")                                    
+/* check if the pulled dataset is valid or not */                       
+if status1 \= 'OK'                                                      
+then                                                                    
+    do                                                                  
+      ZEDSMSG = 'DATASET NOT CATALOGED'                                 
+      call msgrtn                                                       
+      say '!!! ERROR'                                                   
+    end                                                                 
+else                                                                    
+do                                                                      
+/* check if the pulled dataset is valid or not */                       
+  say 'Enter Output dataset list: '                                     
+  pull outdsn                                                           
+  status2 = sysdsn("'"strip(outdsn)"'")                                 
+  if status2 \= 'OK'                                                    
+  then                                                                  
+      do                                                                
+        ZEDSMSG = 'DATASET(S) NOT CATALOGED'                            
+        call msgrtn                                                     
+        say '!!! ERROR'                                                 
+        exit                                                            
+      end                                                               
+end                                                                     
+                                                                        
+/* if both the datasets are valid, allocate them */                     
+address tso                                                             
+"alloc da('"indsn"') ddn(in1) shr"                                      
+"alloc da('"outdsn"') ddn(out1) shr"                                    
+/* read the contents of the dataset with execio */                      
+"execio * diskr in1 (stem data1. finis)"                                
+"execio * diskr out1 (stem data2. finis)"                               
+                                                                        
+/* if the total records is not the same in both datasets,error */       
+if data1.0 \= data2.0                                                   
+then                                                                    
+do                                                                      
+ZEDSMSG = 'RECORDS != IN FILES'                                         
+call msgrtn                                                             
+say '!!! ERROR'                                                         
+exit                                                                    
+end                                                                     
+                                                                        
+/* if the total records exceed 255, error as there can only             
+   be 255 steps in a JCL */                                             
+if data1.0 > 255 | data2.0 > 255                                        
+then                                                                    
+do                                                                      
+ZEDSMSG = 'RECORDS IN FILES > 255'                                      
+call msgrtn                                                             
+say '!!! ERROR'                                                         
+exit                                                                    
+end                                                                     
+                                                                        
+/* define the file tailoring skeleton library */                        
+address ispexec                                                         
+"libdef ispslib dataset id('Z01071.REXX.SKELETON')"                     
+                                                                        
+/* include the job card in the temp file before do loop */              
+NUM = RANDOM(0,99)                                                      
+JBN=USERID()||NUM                                                       
+address ispexec                                                         
+"FTOPEN TEMP"                                                           
+"FTINCL JOBCARD"                                                        
+                                                                        
+/* read a record from both datasets and write to skel */                
+do i=1 to data1.0                                                       
+N = i                                                                   
+FILE1 = strip(substr(data1.i,1,44))                                     
+FILE2 = strip(substr(data1.i,1,44))                                     
+address ispexec                                                         
+"FTINCL FCSKEL"                                                         
+end                                                                     
+                                                                        
+/* once done with loop, open the temp in edit mode */                   
+address ispexec                                                         
+"FTCLOSE"                                                               
+"VGET ZTEMPF"                                                           
+"EDIT DATASET('"ZTEMPF"')"                                              
+                                                                        
+msgrtn:                                                                 
+address ispexec                                                         
+"setmsg msg(isrz001)"                                                   
+return                                                                  

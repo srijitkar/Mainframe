@@ -1,0 +1,12 @@
+//STEP&N   EXEC PGM=SORT,COND=(0,NE)                                    
+//SORTIN  DD DSN=&FILE1,                                                
+//          DISP=SHR                                                    
+//SORTOUT DD DSN=&FILE2,                                                
+//         DISP=(NEW,CATLG,CATLG),                                      
+//         UNIT=SYSDA,SPACE=(CYL,(100,0),RLSE),                         
+//         DCB=(*.SORTIN)                                               
+//SYSOUT   DD SYSOUT=(*)                                                
+//SYSUDUMP DD SYSOUT=(*)                                                
+//SYSIN DD *                                                            
+  SORT FIELDS=COPY                                                      
+/*                                                                      
